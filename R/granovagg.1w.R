@@ -61,10 +61,14 @@
 #' @param dg Numeric; sets number of decimal points in output display, default = 2
 #' @param resid Logical; displays marginal distribution of residuals (as a
 #'   'rug') on right side (wrt grand mean), default = FALSE.
-#' @param xlab Character; horizontal axis label, default = NULL. 
-#' @param ylab Character; vertical axis label, default = NULL. 
+#' @param print.squares Logical; displays graphical squares for visualizing the F-statistic as a ratio
+#'   of MS-between to MS-within
+#' @param xlab Character; horizontal axis label, can be supplied by user, default = \code{"default_x_label"},
+#'   which leads to a generic x-axis label ("Contrast coefficients based on group means"). 
+#' @param ylab Character; vertical axis label, can be supplied by user, default = \code{"default_y_label"}, 
+#'   which leads to a generic y-axis label ("Dependent variable (response)"). 
 #' @param main Character; main label, top of graphic; can be supplied by user,
-#'   default = \code{"default_granova_title"}, which leads to printing of generic title for graphic.
+#'   default = \code{"default_granova_title"}, which will print a generic title for graphic.
 #' @param plot.theme argument indicating a ggplot2 theme to apply to the
 #'   graphic; defaults to a customized theme created for the one-way graphic
 #' @param ... Optional arguments to/from other functions
@@ -92,22 +96,27 @@
 #'
 #' @references Fundamentals of Exploratory Analysis of Variance, Hoaglin D.,
 #'   Mosteller F. and Tukey J. eds., Wiley, 1991.
+#' @include granovagg.1w-helpers.R
 #' @include shared-functions.R 
 #' @include theme-defaults.R
-#' @export
 #' @keywords hplot htest
 #' @example /demo/granovagg.1w.R
 #' @references Wickham, H. (2009). Ggplot2: Elegant Graphics for Data Analysis. New York: Springer.
 #' @references Wilkinson, L. (1999). The Grammar of Graphics. Statistics and computing. New York: Springer.
+#' @import RColorBrewer
+#' @import plyr
+#' @include geom_rug_alt.R
+#' @export
 granovagg.1w <- function(data, 
                          group      = NULL, 
                          h.rng      = 1, 
                          v.rng      = 1,
                          jj         = NULL,
                          dg         = 2, 
-                         resid      = FALSE,  
-                         xlab       = NULL, 
-                         ylab       = NULL, 
+                         resid      = FALSE,
+                         print.squares     = TRUE,  
+                         xlab       = "default_x_label", 
+                         ylab       = "default_y_label", 
                          main       = "default_granova_title",
                          plot.theme = "theme_granova_1w", 
                          ...
@@ -128,7 +137,7 @@ granovagg.1w <- function(data,
   
   CoerceToMatrix <- function(x) {
     error.message <- "It looks like you've tried to pass in higher-dimension data AND a separate group indicator.
-    If your data contains columns of equal numbers of observations, try re-calling granova.1w 
+    If your data contains columns of equal numbers of observations, try re-calling granovagg.1w 
     on your data while setting group = NULL"
     
     if (!is.null(group)) {
@@ -232,7 +241,7 @@ granovagg.1w <- function(data,
 
 
   ammt <- (1/200) * diff(rng.sts)
-  stats.vcj<-jitter(stats.vc, am = ammt)
+  stats.vcj<-jitter(stats.vc, amount = ammt)
     
   #Reordering the stats matrix by the mean of each group
   statsro<-stats[order(stats[,4]),]
@@ -334,10 +343,11 @@ granovagg.1w <- function(data,
     groups <- subset(data, select = group)
     stats  <- subset(data, select = c(-group, -maximum.score))    
     rounded.stats <- round(stats, digits = digits.to.round)
-    message("\nBelow are by-group summary statistics of your input data")
+    output <- ReorderDataByColumn(cbind(groups, rounded.stats), "group.mean")
+    message("\nBy-group summary statistics for your input data (ordered by group means)")
     
     return(
-       print(cbind(groups, rounded.stats))
+       print(output)
     )
   }
   
@@ -422,8 +432,8 @@ granovagg.1w <- function(data,
   GetSquareParameters <- function(owp) {
     return(
       list(
-        x.center = max(owp$params$x.range) - (5 * (owp$params$horizontal.percent)),
-        y.center = min(owp$params$y.range) + (5 * (owp$params$vertical.percent)),
+        x.center = max(owp$params$x.range) - (5.5 * (owp$params$horizontal.percent)),
+        y.center = min(owp$params$y.range) + (5.5 * (owp$params$vertical.percent)),
         height   = 10 * owp$params$vertical.percent,
         width    = 10 * owp$params$horizontal.percent
       )
@@ -431,7 +441,7 @@ granovagg.1w <- function(data,
   }
 
   GetMSbetweenColor <- function(owp) {
-    if (owp$stats$F.statistic > 1) {
+    if ((IsFSignificant(owp$model.summary)) == TRUE) {
       return(brewer.pal(n = 8, name = "Paired")[5])
     }
   
@@ -441,7 +451,7 @@ granovagg.1w <- function(data,
   }
 
   GetMSwithinColor <- function(owp) {
-    if (owp$stats$F.statistic > 1) {
+    if ((IsFSignificant(owp$model.summary)) == TRUE) {
       return(brewer.pal(n = 8, name = "Paired")[6])
     }
   
@@ -452,28 +462,19 @@ granovagg.1w <- function(data,
 
 
   GetColors <- function() {
-    colors <- c(
-     GetMSbetweenColor(owp),
-     GetMSwithinColor(owp),
-     brewer.pal(n = 8, name = "Set1")[3],
-     brewer.pal(n = 8, name = "Paired")[8],
-     brewer.pal(n = 8, name = "Paired")[2],
-     "darkblue",
-     "darkorange"
+    strokeColors <- c(
+      "Grand Mean"         = brewer.pal(n = 8, name = "Set1")[3],
+      "Group Mean Line"    = brewer.pal(n = 8, name = "Paired")[2],
+      "Within 1 SDpooled"  = "darkblue",
+      "Outside 1 SDpooled" = "darkorange"
     )
-  
-    names(colors) <- c(
-      "MS-between",
-      "MS-within",
-      "Grand Mean",
-      "Group Means",
-      "Group Mean Line",
-      "Within 1 SDpooled",
-      "Outside 1 SDpooled"
-    )
-  
-    return(colors)
-  
+    
+    fillColors <- c(
+      "MS-between"         = GetMSbetweenColor(owp),
+      "MS-within"          = GetMSwithinColor(owp),
+      "Group Means"        = brewer.pal(n = 8, name = "Paired")[8]
+    )  
+    return(list(stroke = strokeColors, fill = fillColors))
   }
 
   GetAsTheOuterSquare <- function(owp, name.of.square) {
@@ -539,14 +540,32 @@ granovagg.1w <- function(data,
     return(summary(model))
   }
 
-  GetSquaresText <- function(owp) {
-    f.statistic         <- owp$model.summary$fstatistic["value"]
-    f.statistic.rounded <- round(f.statistic, digits = 2)
+  GetSquaresData <- function(owp) {
+    if (print.squares == TRUE) {
+      vertical.position <- owp$outer.square$ymax + (2.0 * owp$params$vertical.percent)
+    } else {
+      vertical.position <- owp$outer.square$ymin
+    }
+    
+    GetSquaresText(owp, vertical.position)
+  }
+  
+  GetSquaresText <- function(owp, position) {
+    test.statistic         <- owp$model.summary$fstatistic["value"]
+    test.statistic.rounded <- round(test.statistic, digits = 2)
+    
+    if (length(levels(owp$data$group)) == 2) { # 2-group t-test case
+      test.statistic.rounded = round(sqrt(test.statistic), digits = 2)
+      text <- paste("t = ", test.statistic.rounded, sep = "")
+    } else {
+      text <- paste("F = ", test.statistic.rounded, sep = "")
+    } 
+    
     return(
-      data.frame(label     = paste("F = ", f.statistic.rounded),
+      data.frame(label     = text,
                  x         = owp$squares$x.center,
-                 y         = owp$outer.square$ymax + (2.0 * owp$params$vertical.percent),
-                 text.size = GetSquaresTextSize(f.statistic.rounded)
+                 y         = position,
+                 text.size = GetSquaresTextSize(test.statistic.rounded)
       )
     )
   }
@@ -651,28 +670,8 @@ granovagg.1w <- function(data,
         aes(
           x = 0, y = mean(score), color = factor(paste("Grand Mean"))
         ), 
-        size = 3/2,
+        size = 2.5,
         data = owp$data
-      )
-    )
-  }
-
-  ScaleX <- function(owp) {
-    return(scale_x_continuous(
-      breaks = (owp$params$aggregate.x.breaks),
-      labels = signif(owp$params$aggregate.x.breaks, digits = 2),
-      limits = owp$params$x.range,
-      expand = c(0.00, 0))
-    )
-  }
-
-  ScaleY <- function(owp) {
-    return(
-      scale_y_continuous(
-        breaks = (owp$params$aggregate.y.breaks),
-        labels = signif(owp$params$aggregate.y.breaks, digits = 2),
-        limits = owp$params$y.range,
-        expand = c(0.00, 0),
       )
     )
   }
@@ -742,6 +741,16 @@ granovagg.1w <- function(data,
     }
   }
 
+  SquaresForFstatistic <- function() {
+    output <- NULL
+    
+    if (print.squares == TRUE) {
+      output <- list(OuterSquare(), InnerSquare())
+    }
+    
+    return(output)
+  }
+  
   OuterSquare <- function() {
     return(
       geom_rect(
@@ -782,7 +791,8 @@ granovagg.1w <- function(data,
               ),
               color = "grey20",
               size  = owp$squares.text$text.size,
-              data  = owp$squares.text
+              data  = owp$squares.text,
+              vjust = ifelse(print.squares == TRUE, 0.5, -1)
       )
     )
   }
@@ -831,38 +841,41 @@ granovagg.1w <- function(data,
   }
   
   ColorScale <- function(owp) {
-    return(
-      scale_color_manual(
-        value = owp$colors, name = "")
-    )
+    output <- scale_color_manual(values = owp$colors$stroke, name = "")
+
+    if(exists("guides")) {
+      output <- scale_color_manual(
+                  values = owp$colors$stroke, 
+                  name = "",
+                  guide = "legend"
+                )
+    }
+
+    return(output)
   }
 
   FillScale <- function() {
-    return(scale_fill_manual(value = owp$colors, name = ""))
+    return(scale_fill_manual(values = owp$colors$fill, name = ""))
   }
 
-  XLabel <- function() {
-    if (is.null(xlab)) {
-      return(
-        xlab(
-          paste("Contrast coefficients based on group means", "\n", "(F = ", round(F.stat, digits = 2), ")", sep = "")
-        )
-      )
+  XLabel <- function(xlab) {
+    label.to.output <- xlab
+    
+    if ((!is.null(xlab)) && (xlab == "default_x_label")) {
+      label.to.output <- "Contrast coefficients based on group means"
     }
-  
-    else {
-      return (xlab(xlab))
-    }
+    
+    return(xlab(label.to.output))
   }
 
-  YLabel <- function() {  
-    if (is.null(ylab)) {
-      return(ylab("Dependent variable (response)"))
+  YLabel <- function(ylab) {  
+    label.to.output <- ylab
+    
+    if ((!is.null(ylab)) && (ylab == "default_y_label")) {
+      label.to.output <- "Dependent variable (response)"
     }
   
-    else {
-      return (ylab(ylab))
-    }
+    return(ylab(label.to.output))
   }
 
   BackgroundForGroupSizesAndLabels <- function(owp) {
@@ -948,18 +961,19 @@ granovagg.1w <- function(data,
     )
   }
 
-  PlotTitle <- function () {
-    if (main == "default_granova_title") {
-      return(opts(title = GetClassicTitle()))
-    }
+  PlotTitle <- function (main) {    
+    title.to.output <- main
     
-    else {
-      return(opts(title = main))
+    if ( !is.null(title.to.output) && (title.to.output == "default_granova_title")) {
+      title.to.output <- GetClassicTitle()
     }
+  
+    return(opts(title = title.to.output))
   }
 
   RemoveSizeElementFromLegend <- function() {
-    return(scale_size_continuous(legend = FALSE))
+    # return(scale_size_continuous(legend = FALSE))
+    return(NULL)
   }
   
   ### Warning Function Below
@@ -979,9 +993,31 @@ granovagg.1w <- function(data,
     }
   }
   
+  PrintLinearModelSummary <- function(owp) {
+    
+    if (length(levels(owp$data$group)) == 2) {
+      PrintTtest(owp$data[, c("score", "group")])
+    } else {
+      message("\nBelow is a linear model summary of your input data")
+      print(owp$model.summary)
+    }
+  }
+  
+  PrintTtest <- function(data) {
+    unstacked.data <- unstack(data, score ~ group)
+    message("\nBelow is a t-test summary of your input data")
+    print(
+      t.test(unstacked.data[, 1], 
+             unstacked.data[, 2],
+             var.equal = TRUE
+      )
+    )
+  }
+  
   # Pepare OWP object
   owp                       <- AdaptVariablesFromGranovaComputations()
   owp$summary               <- GetSummary(owp)
+  owp$model.summary         <- GetModelSummary(owp)
   owp$group.mean.line       <- GetGroupMeanLine(owp)
   owp$params                <- GetGraphicalParameters(owp)
   owp$overplot              <- AddOverplotInformation(owp$summary, "contrast", 2*owp$params$horizontal.percent)
@@ -989,8 +1025,7 @@ granovagg.1w <- function(data,
   owp$colors                <- GetColors()
   owp$outer.square          <- GetOuterSquare(owp)
   owp$inner.square          <- GetInnerSquare(owp)
-  owp$model.summary         <- GetModelSummary(owp)
-  owp$squares.text          <- GetSquaresText(owp)
+  owp$squares.text          <- GetSquaresData(owp)
   owp$variation    <- GetWithinGroupVariation(owp)
   owp$label.background      <- GetBackgroundForGroupSizesAndLabels(owp)
   owp$group.labels          <- GetGroupLabels(owp)
@@ -1002,8 +1037,8 @@ granovagg.1w <- function(data,
   p <- InitializeGgplot()
   p <- p + GrandMeanLine(owp)
   p <- p + GrandMeanPoint(owp)
-  p <- p + ScaleX(owp)
-  p <- p + ScaleY(owp)
+  p <- p + ScaleX_1w(owp)
+  p <- p + ScaleY_1w(owp)
   p <- p + JitteredScoresByGroupContrast(owp)
   p <- p + GroupMeanLine(owp)
   p <- p + GroupMeansByContrast(owp)
@@ -1011,13 +1046,12 @@ granovagg.1w <- function(data,
   p <- p + MaxWithinGroupVariation(owp)
   p <- p + WithinGroupVariation(owp)
   p <- p + BaselineWithinGroupVariation(owp)
-  p <- p + OuterSquare()
-  p <- p + InnerSquare()
+  p <- p + SquaresForFstatistic()
   p <- p + SquaresText(owp)
   p <- p + ColorScale(owp)
   p <- p + FillScale()
-  p <- p + XLabel()
-  p <- p + YLabel()
+  p <- p + XLabel(xlab)
+  p <- p + YLabel(ylab)
   p <- p + BackgroundForGroupSizesAndLabels(owp)
   p <- p + GroupSizes(owp)
   p <- p + NonOverplottedGroupLabels(owp)
@@ -1025,9 +1059,10 @@ granovagg.1w <- function(data,
   p <- p + RotateXTicks()
   p <- p + Theme(plot.theme)
   p <- p + ForceCoordinateAxesToBeEqual(owp)
-  p <- p + PlotTitle()
+  p <- p + PlotTitle(main)
   p <- p + RemoveSizeElementFromLegend()
   PrintOverplotWarning(owp, dg)
+  PrintLinearModelSummary(owp)
 
   return(p)
 }

@@ -4,10 +4,21 @@
 \alias{granovagg.1w}
 \title{Elemental Graphic Display for One-Way ANOVA}
 \usage{
-granovagg.1w(data, group = NULL, h.rng = 1, v.rng = 1, jj = NULL,
-  dg = 2, resid = FALSE, print.squares = TRUE, xlab = "default_x_label",
-  ylab = "default_y_label", main = "default_granova_title",
-  plot.theme = "theme_granova_1w", ...)
+granovagg.1w(
+  data,
+  group = NULL,
+  h.rng = 1,
+  v.rng = 1,
+  jj = NULL,
+  dg = 2,
+  resid = FALSE,
+  print.squares = TRUE,
+  xlab = "default_x_label",
+  ylab = "default_y_label",
+  main = "default_granova_title",
+  plot.theme = "theme_granova_1w",
+  ...
+)
 }
 \arguments{
 \item{data}{Dataframe or vector. If a dataframe, the two or more columns
@@ -80,13 +91,13 @@ of the group means. In particular, we use the fact that the numerator of
 the one-way F statistic, the mean square between (MS.B), is a linear combination
 of the group means; each weight -- one for each group -- in the L.C. is (principally)
 a function of the difference between the group's mean and the grand
-mean, viz., (M_{j} - M..) where M_{j} denotes the jth group's mean, and M.. denotes
+mean, viz., (M~j~ - M..) where M~j~ denotes the jth group's mean, and M.. denotes
 the grand mean. The L.C. can be written as a sum of products of the form
 MS.B = Sum((1/df.B)(n_j (M_j - M..) M_j)) for j = 1...J.
 The denominator of the F-statistic, MS.W
 (mean square within), can be described as a 'scaling factor'. It is just the (weighted)
-average of the variances of the J groups (j = 1 ... J). (n_{j}'s are group sizes.)
-The differences (M_{j} - M..) are themselves the 'effects' in the analysis.
+average of the variances of the J groups (j = 1 ... J). (n~j~'s are group sizes.)
+The differences (M~j~ - M..) are themselves the 'effects' in the analysis.
 When the effects are plotted against the group means (the horizontal and
 vertical axes) a straight line necessarily ensues. Group means are plotted as
 triangles along this line. Once the means have been plotted, the data points
@@ -143,15 +154,6 @@ data(chickwts)
 ?chickwts # An explanation of the chickwts dataset
 with(chickwts, granovagg.1w(weight, group = feed)) # Modeling weight as explained by feed type
 }
-\author{
-Brian A. Danielak \email{brian@briandk.com}\cr
-  Robert M. Pruzek \email{RMPruzek@yahoo.com}
-
-with contributions by:\cr
-  William E. J. Doane \email{wil@drdoane.com}\cr
-  James E. Helmreich \email{James.Helmreich@Marist.edu}\cr
-  Jason Bryer \email{jason@bryer.org}
-}
 \references{
 Fundamentals of Exploratory Analysis of Variance, Hoaglin D.,
   Mosteller F. and Tukey J. eds., Wiley, 1991.
@@ -164,6 +166,14 @@ Wilkinson, L. (1999). The Grammar of Graphics. Statistics and computing. New Yor
 \code{\link{granovagg.contr}},
   \code{\link{granovagg.ds}}, \code{\link{granovaGG}}
 }
+\author{
+Brian A. Danielak \email{brian@briandk.com}\cr
+  Robert M. Pruzek \email{RMPruzek@yahoo.com}
+
+with contributions by:\cr
+  William E. J. Doane \email{wil@drdoane.com}\cr
+  James E. Helmreich \email{James.Helmreich@Marist.edu}\cr
+  Jason Bryer \email{jason@bryer.org}
+}
 \keyword{hplot}
 \keyword{htest}
-

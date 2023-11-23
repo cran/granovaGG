@@ -4,7 +4,8 @@
 \name{anorexia}
 \alias{anorexia}
 \title{Anorexia Data on Weight Change}
-\format{A dataframe with 72 observations of three variables:
+\format{
+A dataframe with 72 observations of three variables:
 
 \describe{
 
@@ -13,7 +14,8 @@
 \item{Prewt}{Pretreatment weight of subject, in pounds.}
 
 \item{Postwt}{Postreatment weight of subject, in pounds.}
-}}
+}
+}
 \source{
 Hand, D. J., Daly, F., McConway, K., Lunn, D. and Ostrowski, E. eds
   (1993) A Handbook of Small Data Sets. Chapman & Hall, Data set 285 (p.
@@ -27,4 +29,3 @@ Venables, W. N. and Ripley, B. D. (2002) Modern Applied
   Statistics with S. Fourth edition. Springer.
 }
 \keyword{datasets}
-
